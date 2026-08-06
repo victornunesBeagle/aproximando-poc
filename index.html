@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aproximando</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1420;
+    --panel:#161F30;
+    --panel-2:#1D2A40;
+    --gold:#E8B04B;
+    --teal:#5FD6C3;
+    --text:#F2EEE4;
+    --muted:#8493AC;
+    --line:#2A3752;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:0;
+  }
+  #app{
+    width:100%;
+    max-width:480px;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    background:linear-gradient(180deg, #0E1420 0%, #0B1018 100%);
+  }
+  header{
+    padding:28px 24px 18px;
+    text-align:center;
+  }
+  header h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:26px;
+    letter-spacing:0.01em;
+  }
+  header .eyebrow{
+    font-family:'Space Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:6px;
+  }
+  .screen{ padding:0 24px 32px; display:flex; flex-direction:column; gap:16px; flex:1;}
+  .hidden{display:none !important;}
+
+  /* Setup screen */
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:20px;
+  }
+  label{
+    display:block;
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:8px;
+    letter-spacing:0.02em;
+  }
+  input[type=text]{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px;
+    color:var(--text);
+    font-size:16px;
+    font-family:'Space Mono', monospace;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+  }
+  input[type=text]:focus{ outline:2px solid var(--gold); outline-offset:1px;}
+  .role-row{ display:flex; gap:10px; margin-top:14px;}
+  .role-btn{
+    flex:1;
+    padding:14px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:var(--panel-2);
+    color:var(--text);
+    font-size:14px;
+    cursor:pointer;
+  }
+  .role-btn.selected{ border-color:var(--gold); background:rgba(232,176,75,0.12); color:var(--gold);}
+  button.primary{
+    width:100%;
+    padding:16px;
+    border-radius:12px;
+    border:none;
+    background:var(--gold);
+    color:#141A24;
+    font-weight:600;
+    font-size:15px;
+    cursor:pointer;
+    margin-top:6px;
+  }
+  button.primary:disabled{ opacity:0.4; cursor:not-allowed;}
+  .hint{ font-size:12.5px; color:var(--muted); line-height:1.5; margin-top:4px;}
+
+  /* Live screen */
+  .distance-wrap{
+    background:radial-gradient(circle at 50% 30%, var(--panel-2), var(--panel) 70%);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:36px 20px;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .distance-wrap .eyebrow{
+    font-family:'Space Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+  #distanceValue{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size:64px;
+    line-height:1;
+    margin:12px 0 4px;
+    transition:color 0.4s ease;
+  }
+  #distanceUnit{ font-size:16px; color:var(--muted); font-family:'Space Mono', monospace;}
+  .thread-viz{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:0;
+    margin-top:24px;
+    height:40px;
+  }
+  .dot{ width:14px; height:14px; border-radius:50%; flex-shrink:0;}
+  .dot.you{ background:var(--teal); box-shadow:0 0 12px var(--teal);}
+  .dot.them{ background:var(--gold); box-shadow:0 0 12px var(--gold);}
+  #thread{
+    height:2px;
+    background:repeating-linear-gradient(90deg, var(--muted) 0 6px, transparent 6px 12px);
+    transition:width 0.6s ease;
+    max-width:220px;
+    width:220px;
+  }
+  .labels-row{ display:flex; justify-content:space-between; max-width:260px; margin:6px auto 0; font-size:11px; color:var(--muted); font-family:'Space Mono', monospace;}
+
+  #map{ height:280px; border-radius:16px; border:1px solid var(--line); overflow:hidden;}
+  .status-line{ font-size:12px; color:var(--muted); text-align:center; display:flex; align-items:center; justify-content:center; gap:6px;}
+  .pulse{ width:8px; height:8px; border-radius:50%; background:var(--teal); animation:pulse 1.6s infinite;}
+  @keyframes pulse{ 0%,100%{opacity:0.3;} 50%{opacity:1;} }
+  .route-note{ font-size:11.5px; color:var(--muted); text-align:center; line-height:1.5; padding:0 10px;}
+  #roomCodeDisplay{ font-family:'Space Mono', monospace; letter-spacing:0.15em; color:var(--gold); font-size:13px; text-align:center;}
+  .leave-btn{
+    background:none; border:1px solid var(--line); color:var(--muted);
+    border-radius:10px; padding:10px; font-size:12.5px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="eyebrow">Aproximando</div>
+    <h1 id="titleText">encontre a distância</h1>
+  </header>
+
+  <!-- SETUP -->
+  <div class="screen" id="setupScreen">
+    <div class="card">
+      <label for="roomInput">Código da sala (combinem os dois)</label>
+      <input type="text" id="roomInput" placeholder="ex: LUA2026" maxlength="12">
+      <div class="role-row">
+        <button class="role-btn selected" id="roleA" data-role="A">Eu sou A</button>
+        <button class="role-btn" id="roleB" data-role="B">Eu sou B</button>
+      </div>
+      <button class="primary" id="startBtn">Começar a rastrear</button>
+      <div class="hint">Os dois celulares entram com o mesmo código, cada um escolhe um papel diferente (A e B). Precisamos da sua permissão de localização.</div>
+    </div>
+  </div>
+
+  <!-- LIVE -->
+  <div class="screen hidden" id="liveScreen">
+    <div id="roomCodeDisplay"></div>
+    <div class="distance-wrap">
+      <div class="eyebrow">distância entre vocês</div>
+      <div id="distanceValue">—</div>
+      <div id="distanceUnit">aguardando localização</div>
+      <div class="thread-viz">
+        <div class="dot you"></div>
+        <div id="thread"></div>
+        <div class="dot them"></div>
+      </div>
+      <div class="labels-row"><span>você</span><span id="otherLabel">outra pessoa</span></div>
+    </div>
+
+    <div id="map"></div>
+    <div class="route-note">Linha reta entre os dois pontos. Rotas de navegação turn-by-turn precisam de um serviço de mapas com API própria — isso aqui já ajuda a ver o caminho geral.</div>
+
+    <div class="status-line"><div class="pulse"></div><span id="statusText">sincronizando…</span></div>
+    <button class="leave-btn" id="leaveBtn">Sair da sala</button>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+// ======================================================================
+// 1) CRIE UM PROJETO EM https://console.firebase.google.com
+// 2) Adicione um app Web, copie o "firebaseConfig" que ele te dá
+// 3) Ative o "Realtime Database" (não é o Firestore) no menu lateral
+// 4) Cole a configuração aqui embaixo, no lugar dos valores de exemplo
+// ======================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDnVGbDCsrRT8-qqbtst2UUKDxDMkv4k3U",
+  authDomain: "aproximando-2b58e.firebaseapp.com",
+  databaseURL: "https://aproximando-2b58e-default-rtdb.firebaseio.com",
+  projectId: "aproximando-2b58e",
+  storageBucket: "aproximando-2b58e.firebasestorage.app",
+  messagingSenderId: "911568821318",
+  appId: "1:911568821318:web:56fe397950ede5375abe47"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let selectedRole = 'A';
+let roomCode = '';
+let watchId = null;
+let otherRef = null;
+let map, meMarker, themMarker, lineLayer;
+let mapInitialized = false;
+let myLocation = null;
+let otherLocation = null;
+
+document.getElementById('roleA').addEventListener('click', () => selectRole('A'));
+document.getElementById('roleB').addEventListener('click', () => selectRole('B'));
+
+function selectRole(role){
+  selectedRole = role;
+  document.getElementById('roleA').classList.toggle('selected', role === 'A');
+  document.getElementById('roleB').classList.toggle('selected', role === 'B');
+}
+
+document.getElementById('startBtn').addEventListener('click', async () => {
+  const input = document.getElementById('roomInput').value.trim().toUpperCase();
+  if(!input){
+    alert('Digite um código de sala. Combine o mesmo código com a outra pessoa.');
+    return;
+  }
+  roomCode = input;
+  if(!navigator.geolocation){
+    alert('Este navegador não suporta geolocalização.');
+    return;
+  }
+  document.getElementById('setupScreen').classList.add('hidden');
+  document.getElementById('liveScreen').classList.remove('hidden');
+  document.getElementById('roomCodeDisplay').textContent = `sala ${roomCode} · você é ${selectedRole}`;
+  document.getElementById('otherLabel').textContent = selectedRole === 'A' ? 'pessoa B' : 'pessoa A';
+  initMap();
+  startTracking();
+});
+
+document.getElementById('leaveBtn').addEventListener('click', () => {
+  if(watchId !== null) navigator.geolocation.clearWatch(watchId);
+  if(otherRef) otherRef.off();
+  myLocation = null;
+  otherLocation = null;
+  document.getElementById('liveScreen').classList.add('hidden');
+  document.getElementById('setupScreen').classList.remove('hidden');
+});
+
+function initMap(){
+  map = L.map('map', {zoomControl:false}).setView([-14.2, -51.9], 4);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+}
+
+function haversine(lat1, lon1, lat2, lon2){
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+function myPath(){ return `rooms/${roomCode}/${selectedRole}`; }
+function otherPath(){ return `rooms/${roomCode}/${selectedRole === 'A' ? 'B' : 'A'}`; }
+
+function startTracking(){
+  const statusEl = document.getElementById('statusText');
+
+  // Escreve minha localização no Firebase toda vez que ela muda
+  watchId = navigator.geolocation.watchPosition((pos) => {
+    const {latitude, longitude} = pos.coords;
+    myLocation = {lat: latitude, lng: longitude};
+    db.ref(myPath()).set({
+      lat: latitude,
+      lng: longitude,
+      t: firebase.database.ServerValue.TIMESTAMP
+    }).catch(e => console.error('Erro ao salvar localização', e));
+    computeAndRender();
+  }, (err) => {
+    statusEl.textContent = 'permissão de localização negada ou indisponível';
+  }, { enableHighAccuracy:true, maximumAge:5000, timeout:15000 });
+
+  // Escuta a localização da outra pessoa em tempo real (sem precisar dar refresh)
+  otherRef = db.ref(otherPath());
+  otherRef.on('value', (snapshot) => {
+    otherLocation = snapshot.val();
+    computeAndRender();
+  }, (err) => {
+    statusEl.textContent = 'erro de conexão com o Firebase — confira a configuração';
+  });
+
+  statusEl.textContent = 'aguardando sua localização…';
+}
+
+function computeAndRender(){
+  const statusEl = document.getElementById('statusText');
+
+  if(!myLocation){
+    statusEl.textContent = 'aguardando sua localização…';
+    return;
+  }
+  if(!otherLocation){
+    statusEl.textContent = 'aguardando a outra pessoa entrar na sala…';
+    updateMap(myLocation, null);
+    return;
+  }
+
+  const dist = haversine(myLocation.lat, myLocation.lng, otherLocation.lat, otherLocation.lng);
+  renderDistance(dist);
+  updateMap(myLocation, otherLocation);
+
+  const ageSec = otherLocation.t ? Math.round((Date.now() - otherLocation.t) / 1000) : 0;
+  statusEl.textContent = ageSec < 20 ? 'ao vivo' : `última atualização há ${ageSec}s`;
+}
+
+function renderDistance(meters){
+  const valueEl = document.getElementById('distanceValue');
+  const unitEl = document.getElementById('distanceUnit');
+  const thread = document.getElementById('thread');
+
+  let display, unit;
+  if(meters >= 1000){
+    display = (meters/1000).toFixed(2);
+    unit = 'quilômetros';
+  } else {
+    display = Math.round(meters).toString();
+    unit = 'metros';
+  }
+  valueEl.textContent = display;
+  unitEl.textContent = unit;
+
+  // visual thread shrinks as distance shrinks (capped for sanity)
+  const maxMeters = 3000;
+  const minWidth = 20, maxWidth = 220;
+  const ratio = Math.min(meters / maxMeters, 1);
+  thread.style.width = `${minWidth + ratio * (maxWidth - minWidth)}px`;
+
+  valueEl.style.color = meters < 50 ? '#5FD6C3' : '#F2EEE4';
+}
+
+function updateMap(mine, other){
+  if(!mapInitialized){
+    mapInitialized = true;
+  }
+  if(meMarker) map.removeLayer(meMarker);
+  meMarker = L.circleMarker([mine.lat, mine.lng], {radius:8, color:'#5FD6C3', fillColor:'#5FD6C3', fillOpacity:0.9}).addTo(map);
+
+  if(other){
+    if(themMarker) map.removeLayer(themMarker);
+    themMarker = L.circleMarker([other.lat, other.lng], {radius:8, color:'#E8B04B', fillColor:'#E8B04B', fillOpacity:0.9}).addTo(map);
+
+    if(lineLayer) map.removeLayer(lineLayer);
+    lineLayer = L.polyline([[mine.lat, mine.lng],[other.lat, other.lng]], {color:'#8493AC', weight:2, dashArray:'6 8'}).addTo(map);
+
+    const bounds = L.latLngBounds([[mine.lat, mine.lng],[other.lat, other.lng]]);
+    map.fitBounds(bounds, {padding:[40,40]});
+  } else {
+    map.setView([mine.lat, mine.lng], 14);
+  }
+}
+</script>
+</body>
+</html>
